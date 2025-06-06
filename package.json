@@ -14,7 +14,8 @@
   "license": "ISC",
   "packageManager": "pnpm@10.11.1",
   "devDependencies": {
-    "concurrently": "^9.1.2"
+    "concurrently": "^9.1.2",
+    "prisma": "^6.9.0"
   },
   "dependencies": {
     "electron": "^30.5.1"

@@ -1,4 +1,8 @@
 packages:
-  - "apps/*"
-  - "libs/*"
-  - "prisma"
+  - 'apps/*'
+  - 'libs/*'
+  - 'prisma'
+  - 'packages/*'
+catalogs:
+  prisma:
+    prisma: latest
