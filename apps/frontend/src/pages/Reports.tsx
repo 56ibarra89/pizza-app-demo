@@ -15,6 +15,7 @@ import React from "react";
 import TopSellingProducts from "../components/reports/TopSellingProducts";
 import SalesByCategory from "../components/reports/SalesByCategory";
 import ReportCard from "../components/reports/ReportCard";
+import { useSalesContext } from "../context/SalesContext";
 
 const timeRanges = [
   { key: "day", label: "Hoy" },
@@ -26,6 +27,13 @@ const timeRanges = [
 const Reports = () => {
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
   const [selectedRange, setSelectedRange] = React.useState("week");
+
+  const { sales } = useSalesContext();
+
+  const totalVentas = sales.reduce((sum, item) => sum + item.price, 0);
+  const pedidosTotales = sales.length;
+  const ticketPromedio = pedidosTotales > 0 ? totalVentas / pedidosTotales : 0;
+  const productosVendidos = pedidosTotales;
 
   const handleMenuClick = (event: React.MouseEvent<HTMLButtonElement>) => {
     setAnchorEl(event.currentTarget);
@@ -42,6 +50,7 @@ const Reports = () => {
 
   return (
     <Box display="flex" flexDirection="column" gap={4}>
+      {/* Encabezado */}
       <Box display="flex" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={2}>
         <Typography variant="h5" fontWeight={600}>
           Reportes
@@ -68,35 +77,35 @@ const Reports = () => {
         </Box>
       </Box>
 
-      {/* Métricas */}
+      {/* Métricas dinámicas */}
       <Box display="flex" flexWrap="wrap" gap={2}>
         <ReportCard
           title="Ventas Totales"
-          value="$12,540.00"
-          change="+15.3%"
+          value={`$${totalVentas.toFixed(2)}`}
+          change="+0%"
           Icon={AttachMoneyIcon}
         />
         <ReportCard
           title="Pedidos Totales"
-          value="245"
-          change="+5.2%"
+          value={pedidosTotales.toString()}
+          change="+0%"
           Icon={ShoppingBagIcon}
         />
         <ReportCard
           title="Ticket Promedio"
-          value="$51.18"
-          change="+2.3%"
+          value={`$${ticketPromedio.toFixed(2)}`}
+          change="+0%"
           Icon={ReceiptIcon}
         />
         <ReportCard
           title="Productos Vendidos"
-          value="1,245"
-          change="+8.7%"
+          value={productosVendidos.toString()}
+          change="+0%"
           Icon={InventoryIcon}
         />
       </Box>
 
-      {/* Sección inferior */}
+      {/* Gráficos */}
       <Box display="flex" flexWrap="wrap" gap={2}>
         <Box sx={{ flexBasis: { xs: "100%", md: "48%" } }}>
           <SalesByCategory />

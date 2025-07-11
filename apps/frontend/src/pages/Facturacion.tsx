@@ -1,3 +1,4 @@
+// src/pages/Facturacion.tsx
 import { Box, Typography, Button, Tabs, Tab, Divider } from "@mui/material";
 import {
   LocalPizza,
@@ -11,89 +12,122 @@ import { useState } from "react";
 import ProductCard from "../components/ProductCard";
 import CartItem from "../components/CartItem";
 import ExtrasDialog from "../components/ExtrasDialog";
+import SelectSizeDialog from "../components/SelectSizeDialog";
+import { useProductContext } from "../context/ProductContext";
+import { Product, ProductPrice, ProductSize } from "../context/ProductContext";
+import { useSalesContext } from "../context/SalesContext";
+import { useNavigate } from "react-router-dom";
+import FacturaPreviewDialog from "../context/FacturaPreviewDialog";
+
+const iconMap: Record<string, JSX.Element> = {
+  Pizzas: <LocalPizza fontSize="large" />,
+  Mexicanos: <Fastfood fontSize="large" />,
+  Submarinos: <LunchDining fontSize="large" />,
+  Alitas: <Restaurant fontSize="large" />,
+  Postres: <Cake fontSize="large" />,
+  Bebidas: <LocalDrink fontSize="large" />,
+};
 
 const extras = ["Queso extra", "Pepperoni", "Jamón", "Bacon"];
 
-const categories = [
-  {
-    label: "Pizzas",
-    icon: <LocalPizza fontSize="large" />,
-    extras: true,
-    items: [
-      { name: "Solo Queso", price: 8.99 },
-      { name: "Especial To Go", price: 9.99 },
-      { name: "Suprema", price: 10.99 },
-      { name: "Especial de carne", price: 9.49 },
-      { name: "Vegetariana", price: 11.49 },
-      { name: "Hawaiana", price: 10.49 },
-      { name: "Super hwawiana", price: 10.99 },
-      { name: "Blanca", price: 9.99 },
-      { name: "Trozo To Go", price: 9.99 },
-    ],
-  },
-  {
-    label: "Mexicanos",
-    icon: <Fastfood fontSize="large" />,
-    items: [
-      { name: "Quesadillas", price: 6.99 },
-      { name: "Nachos", price: 5.49 },
-      { name: "Tacos", price: 7.25 },
-    ],
-  },
-  {
-    label: "Submarinos",
-    icon: <LunchDining fontSize="large" />,
-    items: [
-      { name: "Clásico", price: 7.99 },
-      { name: "Pollo BBQ", price: 8.49 },
-    ],
-  },
-  {
-    label: "Alitas",
-    icon: <Restaurant fontSize="large" />,
-    items: [
-      { name: "Buffalo", price: 6.5 },
-      { name: "BBQ", price: 6.75 },
-    ],
-  },
-  {
-    label: "Postres",
-    icon: <Cake fontSize="large" />,
-    items: [
-      { name: "Brownie", price: 3.5 },
-      { name: "Pie de limón", price: 4.25 },
-    ],
-  },
-  {
-    label: "Bebidas",
-    icon: <LocalDrink fontSize="large" />,
-    items: [
-      { name: "Agua", price: 1.5 },
-      { name: "Refresco", price: 2.0 },
-    ],
-  },
-];
-
 export const Facturacion = () => {
+  const { categories } = useProductContext();
   const [selectedTab, setSelectedTab] = useState(0);
   const [openExtras, setOpenExtras] = useState(false);
-  const [cart, setCart] = useState<any[]>([]);
+  const [previewOpen, setPreviewOpen] = useState(false);
 
-  const handleAddToCart = (item: any, category: any) => {
-    if (category.extras) setOpenExtras(true);
+  const [cart, setCart] = useState<
+    { name: string; price: number; size: ProductSize; quantity: number }[]
+  >([]);
 
-    setCart((prev) => [...prev, item]);
+  const handleChangeQuantity = (index: number, quantity: number) => {
+  setCart((prev: typeof cart) => {
+    const updated = [...prev];
+    updated[index] = {
+      ...updated[index],
+      quantity: Math.max(1, quantity), // evita cantidades menores a 1
+    };
+    return updated;
+  });
+};
+
+
+  const [selectedProduct, setSelectedProduct] = useState<null | {
+    name: string;
+    prices: ProductPrice[];
+  }>(null);
+
+  const navigate = useNavigate();
+  const { addSale } = useSalesContext();
+
+  const handleAddToCartItem = (newItem: {
+    name: string;
+    price: number;
+    size: ProductSize;
+  }) => {
+    setCart((prev) => {
+      const existingIndex = prev.findIndex(
+        (item) => item.name === newItem.name && item.size === newItem.size
+      );
+
+      if (existingIndex !== -1) {
+        const updated = [...prev];
+        updated[existingIndex] = {
+          ...updated[existingIndex],
+          quantity: updated[existingIndex].quantity + 1 ,
+        };
+        return updated;
+      }
+
+      return [...prev, { ...newItem, quantity: 1 }];
+    });
+  };
+
+  const handleAddToCart = (item: Product) => {
+    if (item?.prices?.length) {
+      const isUniquePrice =
+        item.prices.length === 1 && item.prices[0].size === "único";
+      if (isUniquePrice) {
+        handleAddToCartItem({
+          name: item.name,
+          price: item.prices[0].price,
+          size: "único",
+        });
+      } else {
+        const validPrices = item.prices.filter((p) =>
+          ["familiar", "mediana", "personal"].includes(p.size)
+        );
+        setSelectedProduct({ name: item.name, prices: validPrices });
+      }
+    }
+  };
+
+  const handleSelectSize = (selected: {
+    name: string;
+    price: number;
+    size: ProductSize;
+  }) => {
+    handleAddToCartItem(selected);
+    addSale(selected);
+    setSelectedProduct(null);
   };
 
   const handleRemoveItem = (index: number) => {
-    setCart((prev) => prev.filter((_, i) => i !== index));
+    setCart((prev) => {
+      const updated = [...prev];
+      if (updated[index].quantity > 1) {
+        updated[index].quantity -= 1;
+        return updated;
+      }
+      return updated.filter((_, i) => i !== index);
+    });
   };
 
-  const total = cart.reduce((sum, item) => sum + item.price, 0);
+  const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
   return (
     <Box display="flex" height="100vh" overflow="hidden">
-      {/* Tabs verticales */}
+      {/* Tabs de categorías */}
       <Box
         width="120px"
         bgcolor="#f0f0f0"
@@ -102,9 +136,7 @@ export const Facturacion = () => {
         sx={{
           overflowY: "auto",
           maxHeight: "100%",
-          "&::-webkit-scrollbar": {
-            width: "6px",
-          },
+          "&::-webkit-scrollbar": { width: "6px" },
           "&::-webkit-scrollbar-thumb": {
             backgroundColor: "#ccc",
             borderRadius: "4px",
@@ -121,7 +153,7 @@ export const Facturacion = () => {
           {categories.map((cat, i) => (
             <Tab
               key={i}
-              icon={cat.icon}
+              icon={iconMap[cat.label] ?? null}
               label={cat.label}
               sx={{
                 alignItems: "center",
@@ -135,21 +167,14 @@ export const Facturacion = () => {
       </Box>
 
       {/* Productos */}
-      <Box
-        flex={1}
-        p={3}
-        sx={{
-          maxHeight: "100%", // Limita la altura total del área de productos
-          overflowY: "auto", // Permite scroll si hay muchos productos
-        }}
-      >
+      <Box flex={1} p={3} sx={{ maxHeight: "100%", overflowY: "auto" }}>
         <Box display="flex" flexWrap="wrap" gap={2}>
-          {categories[selectedTab].items.map((item, idx) => (
+          {categories[selectedTab]?.items.map((item, idx) => (
             <ProductCard
               key={idx}
               name={item.name}
-              price={item.price}
-              onClick={() => handleAddToCart(item, categories[selectedTab])}
+              price={item.prices?.[0]?.price || 0}
+              onClick={() => handleAddToCart(item)}
             />
           ))}
         </Box>
@@ -163,7 +188,7 @@ export const Facturacion = () => {
         borderRadius={2}
         display="flex"
         flexDirection="column"
-        maxHeight="100%" // controla la altura máxima del carrito
+        maxHeight="100%"
         boxShadow={2}
       >
         <Typography variant="h6" fontWeight="bold" mb={1}>
@@ -171,21 +196,26 @@ export const Facturacion = () => {
         </Typography>
         <Divider />
 
-        {/* Lista scrollable */}
         <Box flex={1} overflow="auto" pr={1} my={1}>
           {cart.map((item, i) => (
-            <CartItem
-              key={i}
-              name={item.name}
-              price={item.price}
-              onRemove={() => handleRemoveItem(i)}
-            />
+           <CartItem
+  key={i}
+  name={`${item.name} (${item.size})`}
+  price={item.price}
+  quantity={item.quantity}
+  onAdd={() => handleAddToCartItem({
+    name: item.name,
+    price: item.price,
+    size: item.size
+  })}
+  onRemove={() => handleRemoveItem(i)}
+  onChangeQuantity={(qty) => handleChangeQuantity(i, qty)}
+/>
+
           ))}
         </Box>
 
         <Divider sx={{ my: 1 }} />
-
-        {/* Total y botón sticky */}
         <Box position="sticky" bottom={0} bgcolor="#f9f9f9" pt={1}>
           <Typography fontWeight="bold" mb={1}>
             Total: ${total.toFixed(2)}
@@ -195,17 +225,42 @@ export const Facturacion = () => {
             color="primary"
             fullWidth
             disabled={cart.length === 0}
+            onClick={() => setPreviewOpen(true)}
           >
-            Finalizar compra
+            Vista previa
           </Button>
         </Box>
       </Box>
 
-      {/* Modal de extras */}
+      {/* Diálogos */}
       <ExtrasDialog
         open={openExtras}
         extras={extras}
         onClose={() => setOpenExtras(false)}
+      />
+
+      {selectedProduct && (
+        <SelectSizeDialog
+          open={!!selectedProduct}
+          productName={selectedProduct.name}
+          prices={selectedProduct.prices}
+          onClose={() => setSelectedProduct(null)}
+          onSelect={handleSelectSize}
+        />
+      )}
+
+      {/* Vista previa de factura */}
+      <FacturaPreviewDialog
+        open={previewOpen}
+        cart={cart}
+        total={total}
+        onClose={() => setPreviewOpen(false)}
+        onConfirm={() => {
+          cart.forEach((item) => addSale(item));
+          setCart([]);
+          setPreviewOpen(false);
+          navigate("/home");
+        }}
       />
     </Box>
   );

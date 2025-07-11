@@ -1,16 +1,35 @@
-// components/reports/SalesByCategory.tsx
+// src/components/reports/SalesByCategory.tsx
 import { Card, CardContent, Typography, Box, Divider } from "@mui/material";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
+import { useProductContext } from "../../context/ProductContext";
+import { useSalesContext } from "../../context/SalesContext";
 
-const data = [
-  { name: "Platos Principales", value: 45, color: "#1976d2" },
-  { name: "Bebidas", value: 25, color: "#2e7d32" },
-  { name: "Entrantes", value: 20, color: "#fbc02d" },
-  { name: "Postres", value: 10, color: "#7b1fa2" },
-];
+const COLORS = ["#1976d2", "#2e7d32", "#fbc02d", "#7b1fa2", "#ff7043", "#26c6da"];
 
 const SalesByCategory = () => {
-  const total = data.reduce((sum, item) => sum + item.value, 0);
+  const { sales } = useSalesContext();
+  const { categories } = useProductContext();
+
+  const categoryMap: Record<string, string> = {};
+  categories.forEach((cat) => {
+    cat.items.forEach((item) => {
+      categoryMap[item.name] = cat.label;
+    });
+  });
+
+  const grouped: Record<string, number> = {};
+  sales.forEach(({ name }) => {
+    const category = categoryMap[name] || "Otros";
+    grouped[category] = (grouped[category] || 0) + 1;
+  });
+
+  const data = Object.entries(grouped).map(([name, value], i) => ({
+    name,
+    value,
+    color: COLORS[i % COLORS.length],
+  }));
+
+  const total = data.reduce((sum, d) => sum + d.value, 0);
 
   return (
     <Card sx={{ flex: 1, minHeight: 300 }}>
@@ -19,13 +38,8 @@ const SalesByCategory = () => {
           Ventas por Categoría
         </Typography>
         <Divider sx={{ mb: 2 }} />
-        <Box
-          display="flex"
-          flexDirection="column"
-          alignItems="center"
-          justifyContent="center"
-        >
-          <ResponsiveContainer  width="100%" height={240}>
+        <Box display="flex" flexDirection="column" alignItems="center" justifyContent="center">
+          <ResponsiveContainer width="100%" height={240}>
             <PieChart>
               <Pie
                 data={data}
@@ -34,9 +48,7 @@ const SalesByCategory = () => {
                 cy="50%"
                 outerRadius={80}
                 innerRadius={45}
-                label={({ name, percent }) =>
-                  `${name}: ${(percent * 100).toFixed(0)}%`
-                }
+                label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
                 labelLine={false}
               >
                 {data.map((entry, index) => (
